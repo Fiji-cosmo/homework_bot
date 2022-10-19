@@ -63,16 +63,18 @@ def check_response(response):
     if 'homeworks' not in response:
         logging.error('Отсутствует необоходимый ключ homeworks')
         raise KeyError
-    
+
     if type(response['homeworks']) is not list:
-            logging.error('Некорректный тип данных, ожидался список.')
-            raise TypeError
+        logging.error('Некорректный тип данных, ожидался список.')
+        raise TypeError
 
     return response['homeworks']
 
 
 def parse_status(homework):
-    """Извлекает из информации о конкретной домашней работе статус этой работы."""
+    """Извлекает из информации о конкретной домашней работе.
+    И статус этой работы.
+    """
     homework_name = homework.get('homework_name')
     if not homework_name:
         logging.error(f'Поле {homework_name} отсутсвует или пустое')
@@ -82,7 +84,7 @@ def parse_status(homework):
     if homework_status not in HOMEWORK_STATUSES:
         logging.error(f'Статус {homework_status} не определен')
         raise KeyError
-    
+
     verdict = HOMEWORK_STATUSES[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
