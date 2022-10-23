@@ -142,7 +142,7 @@ def main():
                     last_msg = msg
             else:
                 logging.debug('Статус работы не изменился')
-            
+
             if 'current_date' not in response:
                 logging.error('В запросе отсутсвует "current_date"')
                 raise KeyError('В запросе отсутсвует "current_date"')
