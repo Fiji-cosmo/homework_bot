@@ -1,4 +1,6 @@
+from email.policy import default
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import sys
 import time
@@ -22,7 +24,7 @@ ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 
-HOMEWORK_STATUSES = {
+VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
@@ -33,9 +35,13 @@ def send_message(bot: telegram.Bot, message):
     """Отправка сообщения в Telegram."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.info(f'Бот отправил сообщение: {message}')
+        logging.info(
+            f'Бот отправил сообщение в чат {TELEGRAM_CHAT_ID}: {message}'
+        )
     except Exception as error:
-        raise SystemError(f'Сообщение не отправилось: {error}')
+        raise SystemError(
+            f'Сообщение в чат {TELEGRAM_CHAT_ID} не отправилось: {error}'
+        )
 
 
 def get_api_answer(current_timestamp):
@@ -44,12 +50,6 @@ def get_api_answer(current_timestamp):
     logging.info(f'Отправка запроса к {ENDPOINT} с параметрами {params}')
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-        if response.status_code != HTTPStatus.OK:
-            raise APIConnectionError(
-                f'Не удалось подключиться к API '
-                f'код ответа: {response.status_code}'
-            )
-        return response.json()
     except Exception as error:
         raise APIErrorsParams(
             'Ошибка при отправке запроса к API: {} {} {} {}'.format(
@@ -59,26 +59,34 @@ def get_api_answer(current_timestamp):
                 error
             )
         )
+    if response.status_code != HTTPStatus.OK:
+            raise APIConnectionError(
+                f'Не удалось подключиться к API '
+                f'код ответа: {response.status_code}'
+            )
+    return response.json()
 
 
 def check_response(response):
     """Проверяем ответ API на корректность."""
     if not isinstance(response, dict):
-        message = 'Некорректный тип данных, ожидался словарь'
-        logging.error(message)
+        message = (
+            f'Некорректный тип данных: {type(response)}, ожидался словарь.'
+        )
         raise TypeError(message)
 
     if 'homeworks' not in response:
-        logging.error('Отсутствует необоходимый ключ homeworks')
-        raise KeyError
+        message = 'Отсутствует необоходимый ключ homeworks'
+        raise KeyError(message)
 
-    get_homework = response['homeworks']
-    if not isinstance(get_homework, list):
-        message = 'Некорректный тип данных, ожидался список.'
-        logging.error(message)
+    homework_list = response['homeworks']
+    if not isinstance(homework_list, list):
+        message = (
+            f'Некорректный тип данных: {type(response["homeworks"])}, ожидался список.'
+        )
         raise TypeError(message)
 
-    return get_homework
+    return homework_list
 
 
 def parse_status(homework):
@@ -93,11 +101,12 @@ def parse_status(homework):
         raise KeyError('Отсутствует ключ "status"')
     homework_status = homework['status']
 
-    if homework_status not in HOMEWORK_STATUSES:
-        logging.error(f'Пришел неизвестный статус работы: {homework_status}')
-        raise KeyError
+    if homework_status not in VERDICTS:
+        raise KeyError(
+            f'Пришел неизвестный статус работы: {homework_status}'
+        )
 
-    verdict = HOMEWORK_STATUSES[homework_status]
+    verdict = VERDICTS[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -105,20 +114,13 @@ def check_tokens():
     """Проверяем доступность переменных окружения.
     Если отсутсвует хотя бы одна переменная должно возвращаться False.
     """
-    env_dict = {
-        PRACTICUM_TOKEN: 'PRACTICUM_TOKEN',
-        TELEGRAM_TOKEN: 'TELEGRAM_TOKEN',
-        TELEGRAM_CHAT_ID: 'TELEGRAM_CHAT_ID'
-    }
-    if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-        return True
-    else:
-        for key in env_dict:
-            if env_dict[key] is None:
-                logging.critical(
-                    f'Отсутствует переменная {key}'
-                )
-        return False
+    tokens = True
+    tokens_check = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
+    for token in tokens_check:
+        if token is None:
+            tokens = False
+            logging.info(f'Отсутвует токен: {token}')
+        return tokens
 
 
 def main():
@@ -128,41 +130,46 @@ def main():
         raise SystemExit('Отсутствует обязательная переменная окружения')
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = 0
+    current_timestamp = int(time.time())
     last_msg = ''
 
     while True:
         try:
             response = get_api_answer(current_timestamp)
             homeworks = check_response(response)
-            if len(homeworks) > 0:
-                msg = parse_status(homeworks[0])
-                if last_msg != msg:
-                    send_message(bot, msg)
-                    last_msg = msg
-            else:
+            if not homeworks:
                 logging.debug('Статус работы не изменился')
-
-            if 'current_date' not in response:
-                logging.error('В запросе отсутсвует "current_date"')
-                raise KeyError('В запросе отсутсвует "current_date"')
-            current_timestamp = response.get('current_date')
+                continue
+            msg = parse_status(homeworks[0])
+            if last_msg != msg:
+                send_message(bot, msg)
+                last_msg = msg
+            current_timestamp = response.get('current_date', default) 
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
-            send_message(bot, message)
+            if last_msg != message:
+                send_message(bot, message)
+                last_msg = message
         finally:
             time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
-    create_log_file = logging.FileHandler('main.log', 'w')
-    stream_handler = logging.StreamHandler(sys.stdout)
     logging.basicConfig(
         level=logging.DEBUG,
-        handlers=[create_log_file, stream_handler],
+        handlers=[
+            RotatingFileHandler(
+                filename=os.path.join(os.path.dirname(__file__), 'main.log'),
+                maxBytes=50000000,
+                backupCount=2,
+                encoding='utf-8'
+            ),
+            logging.StreamHandler(sys.stdout)
+        ],
         format=(
-            '%(asctime)s [%(levelname)s] %(funcName)s %(lineno)d %(message)s'
+            '%(asctime)s [%(levelname)s] - '
+            '(%(filename)s).%(funcName)s:%(lineno)d - %(message)s'
         )
     )
     main()
