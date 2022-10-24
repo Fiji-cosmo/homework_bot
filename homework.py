@@ -60,10 +60,10 @@ def get_api_answer(current_timestamp):
             )
         )
     if response.status_code != HTTPStatus.OK:
-            raise APIConnectionError(
-                f'Не удалось подключиться к API '
-                f'код ответа: {response.status_code}'
-            )
+        raise APIConnectionError(
+            f'Не удалось подключиться к API '
+            f'код ответа: {response.status_code}'
+        )
     return response.json()
 
 
@@ -82,7 +82,8 @@ def check_response(response):
     homework_list = response['homeworks']
     if not isinstance(homework_list, list):
         message = (
-            f'Некорректный тип данных: {type(response["homeworks"])}, ожидался список.'
+            f'Некорректный тип данных: '
+            f'{type(response["homeworks"])}, ожидался список.'
         )
         raise TypeError(message)
 
