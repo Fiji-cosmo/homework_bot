@@ -1,4 +1,3 @@
-from email.policy import default
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -150,7 +149,7 @@ def main():
                 last_msg = msg
             current_timestamp = response.get(
                 'current_date', current_timestamp
-                )
+            )
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logging.error(message)
