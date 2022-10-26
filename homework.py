@@ -1,12 +1,12 @@
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import sys
 import time
+from http import HTTPStatus
+from logging.handlers import RotatingFileHandler
 
 import requests
 import telegram
-from http import HTTPStatus
 from dotenv import load_dotenv
 
 from exceptions import APIConnectionError
@@ -24,7 +24,7 @@ ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 
-HW_STATUS_VERDICTS = {
+HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
@@ -66,7 +66,7 @@ def get_api_answer(current_timestamp):
 
     if response.status_code != HTTPStatus.OK:
         raise APIConnectionError(
-            f'Не удалось подключиться к API '
+            'Не удалось подключиться к API '
             f'код ответа: {response.status_code}'
         )
     return response.json()
@@ -82,14 +82,14 @@ def check_response(response):
     if 'homeworks' not in response:
         raise KeyError('Отсутствует необоходимый ключ homeworks')
 
-    homework_list = response['homeworks']
-    if not isinstance(homework_list, list):
+    homework = response['homeworks']
+    if not isinstance(homework, list):
         raise TypeError(
-            f'Некорректный тип данных: '
+            'Некорректный тип данных: '
             f'{type(response["homeworks"])}, ожидался список.'
         )
 
-    return homework_list
+    return homework
 
 
 def parse_status(homework):
@@ -104,12 +104,12 @@ def parse_status(homework):
         raise KeyError('Отсутствует ключ "status"')
     homework_status = homework['status']
 
-    if homework_status not in HW_STATUS_VERDICTS:
+    if homework_status not in HOMEWORK_VERDICTS:
         raise KeyError(
             f'Пришел неизвестный статус работы: {homework_status}'
         )
 
-    verdict = HW_STATUS_VERDICTS[homework_status]
+    verdict = HOMEWORK_VERDICTS[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
