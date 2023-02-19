@@ -25,11 +25,11 @@ cd homework_bot
 Cоздать и активировать виртуальное окружение:
 
 ```
-python3 -m venv env
+py -3.7 -m venv venv
 ```
 
 ```
-source env/bin/activate
+source venv/Scripts/activate
 ```
 
 Установить зависимости из файла requirements.txt:
