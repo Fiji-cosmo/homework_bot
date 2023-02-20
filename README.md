@@ -46,15 +46,6 @@ pip install -r requirements.txt
 - токен профиля на Яндекс.Практикуме
 - токен телеграм-бота
 - свой ID в телеграме
-
-Выполнить миграции:
-
 ```
-python3 manage.py migrate
-```
-
-Запустить проект:
-
-```
-python3 manage.py runserver
+Запустить файл homework.py
 ```
